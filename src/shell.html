@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Shell</title>
+  <style>
+    :root{
+      --tb-height: 44px;
+      --glass-bg: rgba(0, 0, 0, 0.733);
+    }
+    /* Barra fixa no topo */
+    #titlebar {
+      -webkit-app-region: drag;
+      position: fixed; inset: 0 0 auto 0; height: var(--tb-height);
+      z-index: 2147483647;
+      display: grid; grid-template-columns: auto 1fr auto; align-items: center;
+      padding: 0 12px; column-gap: 8px;
+      background: var(--glass-bg); backdrop-filter: blur(12px);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .left, .right { display: flex; align-items: center; gap: 8px; -webkit-app-region: no-drag; }
+    .traffic { width:12px; height:12px; border-radius:50%; border:1px solid rgba(0,0,0,.15); cursor:pointer; }
+    .close{background:#ff5f57;} .min{background:#ffbd2e;} .max{background:#28c840;}
+    .traffic:hover::before,.traffic:hover::after{
+      content:""; position:absolute; left:50%; top:50%; width:6px; height:1.6px; background:rgba(0,0,0,.55); transform-origin:center;
+    }
+    .close:hover::before{transform:translate(-50%,-50%) rotate(45deg);}
+    .close:hover::after {transform:translate(-50%,-50%) rotate(-45deg);}
+    .min:hover::before{transform:translate(-50%,-50%);}
+    .min:hover::after{display:none;}
+    .max:hover::before{transform:translate(-50%,-50%) rotate(90deg);}
+    .max:hover::after{transform:translate(-50%,-50%);}
+
+    /* Abas centralizadas */
+    .center{ -webkit-app-region: no-drag; display:flex; justify-content:center; }
+    #tabs { display:flex; gap:8px; align-items:center; overflow-x:auto; padding:4px 0; }
+    .tab{
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:999px; padding:8px 14px;
+      background:rgba(255,255,255,.06); color:#e6e6e6;
+      font:500 13px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      cursor:pointer; user-select:none; white-space:nowrap;
+      transition: background .2s, border-color .2s, color .2s, transform .06s;
+    }
+    .tab:hover{ background:rgba(255,255,255,.12); }
+    .tab:active{ transform: translateY(1px); }
+    .tab.active{ background:#fff; border-color:#fff; color:#111; box-shadow:0 6px 16px rgba(0,0,0,.25); }
+    /* Espaçador à direita com mesma largura da esquerda para centralização perfeita */
+  </style>
+</head>
+<body>
+  <div id="titlebar">
+    <div class="left">
+      <span class="traffic close" title="Fechar" id="btn-close"></span>
+      <span class="traffic min"   title="Minimizar" id="btn-min"></span>
+      <span class="traffic max"   title="Maximizar/Restaurar" id="btn-max"></span>
+    </div>
+    <div class="center">
+      <div id="tabs">
+        <!-- Defina suas abas aqui -->
+        <button class="tab" data-url="https://chat.openai.com/">GPT</button>
+        <button class="tab" data-url="https://platform.openai.com/docs">Docs API</button>
+        <button class="tab" data-url="https://platform.openai.com/playground">Playground</button>
+      </div>
+    </div>
+    <div class="right"></div>
+  </div>
+
+  <script>
+    // Centralização perfeita: espelha largura da esquerda na direita
+    const left = document.querySelector('.left');
+    const right = document.querySelector('.right');
+    const sync = () => right.style.width = left.offsetWidth + 'px';
+    new ResizeObserver(sync).observe(left); window.addEventListener('resize', sync); sync();
+
+    // Controles de janela
+    btnClose.onclick = () => window.api.close();
+    btnMin.onclick   = () => window.api.minimize();
+    btnMax.onclick   = () => window.api.toggleMaximize();
+
+    // Navegação das abas
+    const tabs = document.querySelectorAll('.tab');
+    tabs.forEach(b => b.onclick = () => window.api.navGo(b.dataset.url));
+
+    // Marcar aba ativa conforme a URL atual do BrowserView
+    function paintActive(url){
+      tabs.forEach(b => b.classList.toggle('active', url && (url.startsWith(b.dataset.url) || url.includes(new URL(b.dataset.url).hostname))));
+    }
+    window.api.onActiveUrl((url) => paintActive(url));
+  </script>
+</body>
+</html>
