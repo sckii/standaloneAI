@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Configurações – Abas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    /* ===== Reset & Tokens ===== */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: #0b0b10; color: #f3f4f6;
+    }
+    :root{
+      --bg:#0b0b10; --card:#12131a; --muted:#a6adbb; --line:#232636; --line2:#2b3042;
+      --accent:#7dd3fc; --accent-2:#60a5fa; --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444;
+      --white:#fff; --black:#000;
+      --radius:14px;
+      --shadow: 0 8px 24px rgba(0,0,0,.35);
+      --focus: 0 0 0 2px rgba(125,211,252,.35);
+    }
+
+    /* ===== Layout ===== */
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 16px 48px; }
+    .header {
+      display:flex; align-items:center; gap:12px; justify-content:space-between; margin-bottom:22px;
+    }
+    .title { font-size: 22px; font-weight: 700; letter-spacing:.2px; }
+    .muted { color: var(--muted); font-size: 13px; }
+
+    .card {
+      background: linear-gradient(180deg, #12131a, #101119);
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    /* ===== Form Add ===== */
+    .form { padding:18px; display:grid; gap:14px; grid-template-columns: 1fr; }
+    .grid { display:grid; gap:12px; }
+    .grid-12 { grid-template-columns: repeat(12, minmax(0,1fr)); }
+    .col-12 { grid-column: span 12; }
+    .col-6  { grid-column: span 6; }
+    .col-4  { grid-column: span 4; }
+    .label { font-size:12px; color: var(--muted); margin-bottom:6px; display:block; }
+    .input, .checkbox {
+      width:100%; background:#0f1017; color:#e5e7eb;
+      border:1px solid var(--line2); border-radius: 10px;
+      padding:10px 12px; outline:none; transition:.15s;
+    }
+    .input::placeholder{ color:#647189; }
+    .input:focus { border-color: var(--accent); box-shadow: var(--focus); }
+
+    .row-inline { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+    .check { display:inline-flex; gap:8px; align-items:center; color:#d1d5db; font-size:14px; }
+    .btn {
+      appearance:none; border:none; cursor:pointer; white-space:nowrap;
+      border-radius: 10px; padding:10px 14px; font-weight:600; letter-spacing:.2px;
+      background:#202331; color:#e5e7eb; border:1px solid var(--line2); transition:.15s;
+    }
+    .btn:hover { background:#272b3d; }
+    .btn:disabled { opacity:.6; cursor:not-allowed; }
+    .btn-primary {
+      background: linear-gradient(180deg, #60a5fa, #3b82f6);
+      color:#0b1220; border:1px solid #3b82f6;
+    }
+    .btn-primary:hover { filter:brightness(1.03); }
+
+    /* ===== List ===== */
+    .list { margin-top:14px; display:flex; flex-direction:column; gap:10px; }
+    .item {
+      display:grid; grid-template-columns: 1.3fr 2fr 1.6fr auto;
+      gap:14px; align-items:center; padding:14px 16px;
+      background: #10121a; border:1px solid var(--line); border-radius: 12px;
+    }
+    .item .info { display:flex; gap:12px; align-items:center; min-width:0; }
+    .avatar {
+      width:40px; height:40px; border-radius: 10px; overflow:hidden;
+      background:#0f1017; border:1px solid var(--line2); display:grid; place-items:center;
+      color:#9aa4b2; font-weight:700;
+    }
+    .avatar img { width:100%; height:100%; object-fit:cover; display:block; }
+    .name { font-weight:700; font-size:15px; }
+    .host { color: var(--muted); font-size:12px; overflow:hidden; text-overflow:ellipsis; }
+
+    .url { font-size:13px; color:#cbd5e1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+    .toggles { display:flex; align-items:center; gap:18px; }
+    .switch {
+      width:46px; height:26px; border-radius:999px; position:relative;
+      background:#22273a; border:1px solid var(--line2); cursor:pointer; transition:.15s;
+    }
+    .switch::after{
+      content:""; position:absolute; top:2px; left:2px; width:22px; height:22px; border-radius:999px;
+      background:#e5e7eb; transition:.15s;
+    }
+    .switch.on { background:#16a34a; border-color:#16a34a; }
+    .switch.on::after{ transform: translateX(20px); background:#fff; }
+
+    .radio { display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; color:#d1d5db; }
+    .radio input { accent-color:#60a5fa; width:16px; height:16px; }
+
+    .actions { display:flex; gap:8px; justify-self:end; }
+    .btn-ghost {
+      background:#0f1118; border:1px solid var(--line2); color:#e5e7eb;
+    }
+    .btn-ghost:hover { background:#151826; }
+
+    /* Edit mode */
+    .edit-grid { display:grid; grid-template-columns: 1.3fr 2fr 1.6fr auto; gap:14px; align-items:center; }
+    .edit-field { display:flex; flex-direction:column; gap:6px; }
+    .hint { font-size:12px; color:var(--muted); }
+
+    /* Header row */
+    .list-head {
+      display:grid; grid-template-columns: 1.3fr 2fr 1.6fr auto; gap:14px; align-items:center;
+      padding: 8px 2px; color:#8c98ad; font-size:12px;
+    }
+
+    /* Empty state */
+    .empty {
+      padding:24px; text-align:center; color:#9aa4b2; border:1px dashed var(--line2);
+      border-radius: 12px; background:#0f1118;
+    }
+
+    /* Toasts */
+    .toast-wrap{ position: fixed; right:16px; bottom:16px; display:flex; flex-direction:column; gap:10px; z-index: 9999; }
+    .toast{
+      background:#111318; color:#e5e7eb; border:1px solid var(--line2);
+      border-left:4px solid var(--ok); padding:10px 12px; border-radius:10px; min-width: 220px;
+      box-shadow: var(--shadow); font-size:14px;
+      animation: slidein .2s ease-out;
+    }
+    .toast.err{ border-left-color: var(--danger); }
+    @keyframes slidein { from { opacity:0; transform: translateY(6px);} to {opacity:1; transform:none;} }
+
+    /* Responsive */
+    @media (max-width: 920px){
+      .item, .list-head, .edit-grid { grid-template-columns: 1fr; }
+      .actions{ justify-self:stretch; }
+    }
+
+    /* Fallback banner if preload ausente */
+    .errorbar{
+      position:fixed; inset:auto 0 0 0; background:#3f1d1d; color:#ffdddd; padding:10px 14px;
+      border-top:1px solid #5c2a2a; font-size:14px; display:none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div>
+        <div class="title">Configurações de Abas</div>
+        <div class="muted">Gerencie as IAs exibidas na barra: adicione, edite, fixe e defina a padrão.</div>
+      </div>
+    </div>
+
+    <!-- Adicionar nova IA -->
+    <section class="card">
+      <form id="add-form" class="form">
+        <div class="grid grid-12">
+          <div class="col-12 col-4">
+            <label class="label" for="add-label">Nome</label>
+            <input id="add-label" class="input" placeholder="Ex.: Perplexity" autocomplete="off" />
+          </div>
+          <div class="col-12 col-6">
+            <label class="label" for="add-url">URL</label>
+            <input id="add-url" class="input" placeholder="https://www.perplexity.ai/" autocomplete="off" />
+          </div>
+          <div class="col-12 col-4">
+            <label class="label" for="add-icon">Ícone (URL opcional)</label>
+            <input id="add-icon" class="input" placeholder="https://.../icon.png" autocomplete="off" />
+          </div>
+        </div>
+        <div class="row-inline">
+          <label class="check"><input id="add-pin" type="checkbox" /> Fixar nas abas</label>
+          <label class="check"><input id="add-default" type="checkbox" /> Definir como padrão</label>
+          <button id="add-submit" type="submit" class="btn btn-primary" style="margin-left:auto">Adicionar</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Lista -->
+    <section style="margin-top:18px">
+      <div class="list-head">
+        <div>Nome</div><div>URL</div><div>Fixado / Padrão</div><div></div>
+      </div>
+      <div id="list" class="list"></div>
+      <div id="empty" class="empty" style="display:none">Nenhuma IA cadastrada ainda.</div>
+    </section>
+  </div>
+
+  <div id="toasts" class="toast-wrap" aria-live="polite"></div>
+  <div id="errorbar" class="errorbar">Preload ausente: window.settingsAPI não está disponível.</div>
+
+  <script>
+    // ===== Helpers de UI =====
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+    const toasts = $('#toasts');
+    function toast(msg, type='ok', ms=2200){
+      const el = document.createElement('div');
+      el.className = 'toast' + (type==='err'?' err':'');
+      el.textContent = msg;
+      toasts.appendChild(el);
+      setTimeout(() => { el.style.opacity=0; el.style.transform='translateY(6px)'; setTimeout(()=>el.remove(),180); }, ms);
+    }
+    function hostFromUrl(u){ try { return new URL(u).hostname; } catch { return u; } }
+    function fallbackLetter(name){ return (name||'?').trim().charAt(0).toUpperCase(); }
+    function validUrl(u){
+      try { const x=new URL(u); return x.protocol==='https:' || x.protocol==='http:'; } catch { return false; }
+    }
+
+    // ===== Estado =====
+    let DATA = { providers: [], defaultId: null };
+    const editing = new Set();
+
+    // ===== Renderização =====
+    const listEl = $('#list');
+    const emptyEl = $('#empty');
+
+    function render(){
+      listEl.innerHTML = '';
+      const { providers, defaultId } = DATA;
+      if (!providers || !providers.length){ emptyEl.style.display='block'; return; }
+      emptyEl.style.display='none';
+
+      providers.forEach(p => {
+        if (!editing.has(p.id)) {
+          // ---- Linha normal
+          const item = document.createElement('div');
+          item.className = 'item';
+          item.dataset.id = p.id;
+
+          const info = document.createElement('div');
+          info.className = 'info';
+          const avatar = document.createElement('div');
+          avatar.className = 'avatar';
+          if (p.icon) {
+            const img = document.createElement('img'); img.src = p.icon; img.alt = '';
+            img.onerror = () => { avatar.textContent = fallbackLetter(p.label); };
+            avatar.appendChild(img);
+          } else {
+            avatar.textContent = fallbackLetter(p.label);
+          }
+          const text = document.createElement('div');
+          const name = document.createElement('div'); name.className='name'; name.textContent=p.label;
+          const host = document.createElement('div'); host.className='host'; host.textContent=hostFromUrl(p.url);
+          text.append(name, host);
+          if (p.id === defaultId) {
+            const chip = document.createElement('span');
+            chip.textContent = 'Padrão';
+            chip.style.cssText = 'margin-left:auto;background:#fff;color:#111;border-radius:999px;padding:2px 8px;font-size:12px;font-weight:700;';
+            text.appendChild(chip);
+          }
+          info.append(avatar, text);
+
+          const url = document.createElement('div');
+          url.className = 'url';
+          url.textContent = p.url;
+
+          const toggles = document.createElement('div');
+          toggles.className = 'toggles';
+          // switch pinned
+          const sw = document.createElement('div');
+          sw.className = 'switch' + (p.pinned ? ' on' : '');
+          sw.title = 'Fixar nas abas';
+          sw.addEventListener('click', async () => {
+            sw.classList.toggle('on');
+            try {
+              await window.settingsAPI.setPinned(p.id, sw.classList.contains('on'));
+              toast(sw.classList.contains('on') ? 'Fixado nas abas' : 'Removido das abas');
+            } catch (e) {
+              sw.classList.toggle('on'); // rollback
+              toast('Falha ao alterar fixo.', 'err');
+            }
+          });
+          const pinWrap = document.createElement('div');
+          pinWrap.style.display='flex'; pinWrap.style.alignItems='center'; pinWrap.style.gap='8px';
+          const pinLbl = document.createElement('span'); pinLbl.className='muted'; pinLbl.textContent='Fixado';
+          pinWrap.append(sw, pinLbl);
+
+          // radio default
+          const radioWrap = document.createElement('label');
+          radioWrap.className = 'radio';
+          const rd = document.createElement('input');
+          rd.type='radio'; rd.name='defaultProvider'; rd.value=p.id; rd.checked = (p.id===defaultId);
+          rd.addEventListener('change', async () => {
+            try { await window.settingsAPI.setDefault(p.id); toast('Definido como padrão'); }
+            catch { toast('Falha ao definir padrão', 'err'); }
+          });
+          const rdLbl = document.createElement('span'); rdLbl.textContent='Padrão';
+          radioWrap.append(rd, rdLbl);
+
+          toggles.append(pinWrap, radioWrap);
+
+          const actions = document.createElement('div');
+          actions.className = 'actions';
+          const btnOpen = document.createElement('button'); btnOpen.className='btn btn-ghost'; btnOpen.textContent='Abrir';
+          btnOpen.addEventListener('click', () => window.settingsAPI.open(p.id));
+          const btnEdit = document.createElement('button'); btnEdit.className='btn btn-ghost'; btnEdit.textContent='Editar';
+          btnEdit.addEventListener('click', () => { editing.add(p.id); render(); });
+          const btnRem = document.createElement('button'); btnRem.className='btn btn-ghost'; btnRem.style.color='#fca5a5'; btnRem.textContent='Remover';
+          btnRem.addEventListener('click', async () => {
+            if (!confirm('Remover este provedor?')) return;
+            try { await window.settingsAPI.remove(p.id); toast('Removido'); }
+            catch { toast('Falha ao remover', 'err'); }
+          });
+          actions.append(btnOpen, btnEdit, btnRem);
+
+          item.append(info, url, toggles, actions);
+          listEl.appendChild(item);
+
+        } else {
+          // ---- Linha em modo edição
+          const row = document.createElement('div');
+          row.className = 'item';
+          row.dataset.id = p.id;
+
+          // Coluna Nome + Ícone preview
+          const nameCol = document.createElement('div'); nameCol.className='edit-field';
+          const nameLbl = document.createElement('label'); nameLbl.className='label'; nameLbl.textContent='Nome';
+          const nameInp = document.createElement('input'); nameInp.className='input'; nameInp.value=p.label; nameInp.id=`edit-label-${p.id}`;
+          const iconLbl = document.createElement('label'); iconLbl.className='label'; iconLbl.textContent='Ícone (URL opcional)';
+          const iconInp = document.createElement('input'); iconInp.className='input'; iconInp.value=p.icon||''; iconInp.id=`edit-icon-${p.id}`;
+          nameCol.append(nameLbl, nameInp, iconLbl, iconInp);
+
+          // Coluna URL
+          const urlCol = document.createElement('div'); urlCol.className='edit-field';
+          const urlLbl = document.createElement('label'); urlLbl.className='label'; urlLbl.textContent='URL';
+          const urlInp = document.createElement('input'); urlInp.className='input'; urlInp.value=p.url; urlInp.id=`edit-url-${p.id}`;
+          const hint = document.createElement('div'); hint.className='hint'; hint.textContent='Ex.: https://chat.openai.com/';
+          urlCol.append(urlLbl, urlInp, hint);
+
+          // Coluna vazia (alinhamento)
+          const blank = document.createElement('div');
+
+          // Ações salvar/cancelar
+          const act = document.createElement('div'); act.className='actions';
+          const btnCancel = document.createElement('button'); btnCancel.className='btn'; btnCancel.textContent='Cancelar';
+          btnCancel.addEventListener('click', () => { editing.delete(p.id); render(); });
+          const btnSave = document.createElement('button'); btnSave.className='btn btn-primary'; btnSave.textContent='Salvar';
+          btnSave.addEventListener('click', async () => {
+            const label = nameInp.value.trim();
+            const url   = urlInp.value.trim();
+            const icon  = iconInp.value.trim();
+            if (!label){ nameInp.focus(); return toast('Informe um nome.', 'err'); }
+            if (!validUrl(url)){ urlInp.focus(); return toast('URL inválida.', 'err'); }
+            btnSave.disabled = true;
+            try{
+              const res = await window.settingsAPI.update({ id:p.id, label, url, icon });
+              if (!res?.ok) throw new Error('Update falhou');
+              editing.delete(p.id);
+              toast('Salvo');
+              // refresh puxando do main
+              const data = await window.settingsAPI.list();
+              DATA = data; render();
+            }catch(e){ toast('Erro ao salvar.', 'err'); }
+            finally{ btnSave.disabled = false; }
+          });
+          act.append(btnCancel, btnSave);
+
+          row.append(nameCol, urlCol, blank, act);
+          listEl.appendChild(row);
+        }
+      });
+    }
+
+    // ===== Add form =====
+    const addForm = $('#add-form');
+    addForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const label = $('#add-label').value.trim();
+      const url   = $('#add-url').value.trim();
+      const icon  = $('#add-icon').value.trim();
+      const pinned = $('#add-pin').checked;
+      const setAsDefault = $('#add-default').checked;
+      if (!label) { $('#add-label').focus(); return toast('Informe um nome.', 'err'); }
+      if (!validUrl(url)) { $('#add-url').focus(); return toast('URL inválida.', 'err'); }
+      const btn = $('#add-submit');
+      btn.disabled = true;
+      try{
+        const res = await window.settingsAPI.add({ label, url, icon, pinned, setAsDefault });
+        if (!res?.ok) throw new Error('Add falhou');
+        addForm.reset();
+        toast('Adicionado');
+        DATA = await window.settingsAPI.list();
+        render();
+      }catch(e){ toast('Erro ao adicionar.', 'err'); }
+      finally{ btn.disabled = false; }
+    });
+
+    // ===== Integração com o main via preload =====
+    function guardPreload(){
+      if (!window.settingsAPI){
+        $('#errorbar').style.display='block';
+        return false;
+      }
+      return true;
+    }
+
+    (async function init(){
+      if (!guardPreload()) return;
+      try {
+        const data = await window.settingsAPI.list();
+        DATA = data;
+        render();
+      } catch {
+        toast('Falha ao carregar dados.', 'err');
+      }
+      // Atualizações em tempo real (quando outro lugar mudar)
+      window.settingsAPI.onChanged((data) => { DATA = data; render(); });
+    })();
+  </script>
+</body>
+</html>

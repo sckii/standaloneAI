@@ -3,90 +3,241 @@
 <head>
   <meta charset="utf-8" />
   <title>Shell</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root{
-      --tb-height: 44px;
-      --glass-bg: rgba(0, 0, 0, 0.733);
-    }
-    /* Barra fixa no topo */
-    #titlebar {
-      -webkit-app-region: drag;
-      position: fixed; inset: 0 0 auto 0; height: var(--tb-height);
-      z-index: 2147483647;
-      display: grid; grid-template-columns: auto 1fr auto; align-items: center;
-      padding: 0 12px; column-gap: 8px;
-      background: var(--glass-bg); backdrop-filter: blur(12px);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    }
-    .left, .right { display: flex; align-items: center; gap: 8px; -webkit-app-region: no-drag; }
-    .traffic { width:12px; height:12px; border-radius:50%; border:1px solid rgba(0,0,0,.15); cursor:pointer; }
-    .close{background:#ff5f57;} .min{background:#ffbd2e;} .max{background:#28c840;}
-    .traffic:hover::before,.traffic:hover::after{
-      content:""; position:absolute; left:50%; top:50%; width:6px; height:1.6px; background:rgba(0,0,0,.55); transform-origin:center;
-    }
-    .close:hover::before{transform:translate(-50%,-50%) rotate(45deg);}
-    .close:hover::after {transform:translate(-50%,-50%) rotate(-45deg);}
-    .min:hover::before{transform:translate(-50%,-50%);}
-    .min:hover::after{display:none;}
-    .max:hover::before{transform:translate(-50%,-50%) rotate(90deg);}
-    .max:hover::after{transform:translate(-50%,-50%);}
-
-    /* Abas centralizadas */
-    .center{ -webkit-app-region: no-drag; display:flex; justify-content:center; }
-    #tabs { display:flex; gap:8px; align-items:center; overflow-x:auto; padding:4px 0; }
-    .tab{
-      border:1px solid rgba(255,255,255,.12);
-      border-radius:999px; padding:8px 14px;
-      background:rgba(255,255,255,.06); color:#e6e6e6;
-      font:500 13px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      cursor:pointer; user-select:none; white-space:nowrap;
-      transition: background .2s, border-color .2s, color .2s, transform .06s;
-    }
-    .tab:hover{ background:rgba(255,255,255,.12); }
-    .tab:active{ transform: translateY(1px); }
-    .tab.active{ background:#fff; border-color:#fff; color:#111; box-shadow:0 6px 16px rgba(0,0,0,.25); }
-    /* Espaçador à direita com mesma largura da esquerda para centralização perfeita */
+    .drag{-webkit-app-region:drag} .no-drag{-webkit-app-region:no-drag}
+    .glass{background:rgb(20, 20, 20);backdrop-filter:blur(12px)}
+    .tab-active{background:#fff;color:#111;box-shadow:0 6px 16px rgba(0,0,0,.25);border-color:#fff}
+    #tabs{scroll-behavior:smooth}
   </style>
 </head>
-<body>
-  <div id="titlebar">
-    <div class="left">
-      <span class="traffic close" title="Fechar" id="btn-close"></span>
-      <span class="traffic min"   title="Minimizar" id="btn-min"></span>
-      <span class="traffic max"   title="Maximizar/Restaurar" id="btn-max"></span>
+<body class="bg-transparent select-none">
+
+  <!-- Barra (titlebar + tabs centralizadas) -->
+  <header id="titlebar" class="drag fixed inset-x-0 top-0 z-[999999] h-12 grid grid-cols-[auto_1fr_auto] items-center px-3 glass">
+    <!-- Esquerda: traffic lights -->
+    <div id="left" class="no-drag flex items-center gap-2">
+      <button id="btn-close" class="w-3 h-3 rounded-full border border-black/20" style="background:#ff5f57"></button>
+      <button id="btn-min"   class="w-3 h-3 rounded-full border border-black/20" style="background:#ffbd2e"></button>
+      <button id="btn-max"   class="w-3 h-3 rounded-full border border-black/20" style="background:#28c840"></button>
     </div>
-    <div class="center">
-      <div id="tabs">
-        <!-- Defina suas abas aqui -->
-        <button class="tab" data-url="https://chat.openai.com/">GPT</button>
-        <button class="tab" data-url="https://platform.openai.com/docs">Docs API</button>
-        <button class="tab" data-url="https://platform.openai.com/playground">Playground</button>
+
+    <!-- Centro: abas -->
+    <div class="drag flex items-center justify-center">
+      <div class="relative w-full max-w-[880px]">
+        <button id="scroll-left" class="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/30 hover:bg-black/50">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button id="scroll-right" class="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/30 hover:bg-black/50">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div id="tabs" class="mx-6 flex items-center gap-2 overflow-x-auto whitespace-nowrap py-1"></div>
       </div>
     </div>
-    <div class="right"></div>
+
+    <!-- Direita: engrenagem (abre tela inicial/config) -->
+    <div id="right" class="no-drag flex items-center">
+      <button id="btn-settings" class="p-2 rounded hover:bg-white/10" title="Configurar IAs">
+        <!-- ícone engrenagem -->
+        <svg width="18" height="18" viewBox="0 0 24 24" class="text-white/90"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" fill="currentColor"/><path d="M19.4 15a7.97 7.97 0 0 0 .06-1 7.97 7.97 0 0 0-.06-1l2.02-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.38.96a7.9 7.9 0 0 0-1.73-1l-.36-2.54A.5.5 0 0 0 12.07 3h-3.84a.5.5 0 0 0-.49.41L7.38 5.95a7.9 7.9 0 0 0-1.73 1L3.27 6a.5.5 0 0 0-.6.22L.75 9.54a.5.5 0 0 0 .12.64L2.9 11.76a7.97 7.97 0 0 0-.06 1c0 .34.02.67.06 1l-2.03 1.59a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.38-.96c.53.4 1.11.74 1.73 1l.36 2.54a.5.5 0 0 0 .49.41h3.84a.5.5 0 0 0 .49-.41l.36-2.54a7.9 7.9 0 0 0 1.73-1l2.38.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64L19.4 15Z" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Tela inicial / Config de IAs -->
+  <div id="onboarding" class="no-drag fixed inset-0 z-[999998] hidden">
+    <div class="absolute inset-0 bg-black/50"></div>
+    <div class="relative mx-auto mt-20 w-[min(900px,92vw)] rounded-2xl bg-neutral-900/95 border border-white/10 shadow-2xl p-6 text-white">
+      <h2 class="text-xl font-semibold mb-2">Escolha sua IA padrão</h2>
+      <p class="text-white/70 mb-4">Selecione a IA padrão e adicione outras que você usa. Você pode mudar depois na engrenagem.</p>
+
+      <div id="providers-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6"></div>
+
+      <div class="border-t border-white/10 pt-4">
+        <h3 class="font-medium mb-2">Adicionar nova IA</h3>
+        <form id="add-form" class="grid sm:grid-cols-4 gap-2">
+          <input id="add-name" class="col-span-1 sm:col-span-1 bg-white/10 rounded px-3 py-2 outline-none focus:bg-white/15" placeholder="Nome (ex.: Perplexity)" />
+          <input id="add-url"  class="col-span-2 sm:col-span-2 bg-white/10 rounded px-3 py-2 outline-none focus:bg-white/15" placeholder="URL (ex.: https://www.perplexity.ai/)" />
+          <select id="add-icon" class="col-span-1 bg-white/10 rounded px-3 py-2 outline-none">
+            <option value="globe">🌐 Ícone padrão</option>
+            <option value="gpt">GPT</option>
+            <option value="book">Docs</option>
+            <option value="code">Code</option>
+          </select>
+          <button class="col-span-full sm:col-span-1 justify-self-start mt-1 bg-white/90 text-black font-medium px-4 py-2 rounded hover:bg-white">Adicionar</button>
+        </form>
+      </div>
+
+      <div class="mt-6 flex items-center gap-2">
+        <button id="btn-save-default" class="bg-white text-black font-semibold px-4 py-2 rounded hover:bg-white/90">Usar como padrão e abrir</button>
+        <button id="btn-close-onb" class="px-3 py-2 rounded border border-white/20 hover:bg-white/10">Cancelar</button>
+      </div>
+    </div>
   </div>
 
   <script>
-    // Centralização perfeita: espelha largura da esquerda na direita
-    const left = document.querySelector('.left');
-    const right = document.querySelector('.right');
-    const sync = () => right.style.width = left.offsetWidth + 'px';
-    new ResizeObserver(sync).observe(left); window.addEventListener('resize', sync); sync();
+    // ===== Helpers de SVG simples =====
+    const ICONS = {
+      gpt:  '<svg width="16" height="16" viewBox="0 0 24 24" class="shrink-0"><path d="M12 2l3.5 2 3.5 6-3.5 6L12 22l-3.5-2-3.5-6 3.5-6L12 2z" fill="currentColor" opacity=".15"/><path d="M8 12a4 4 0 1 0 8 0" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>',
+      book:'<svg width="16" height="16" viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4z" fill="currentColor" opacity=".2"/><path d="M5 4h10a3 3 0 0 1 3 3v13" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>',
+      code:'<svg width="16" height="16" viewBox="0 0 24 24"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13 7l-2 10" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      globe:'<svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M3 12h18M12 3c3 4 3 14 0 18M12 3c-3 4-3 14 0 18" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>',
+    };
 
-    // Controles de janela
-    btnClose.onclick = () => window.api.close();
-    btnMin.onclick   = () => window.api.minimize();
-    btnMax.onclick   = () => window.api.toggleMaximize();
+    // ===== Elementos principais =====
+    const leftEl   = document.getElementById('left');
+    const rightEl  = document.getElementById('right');
+    const tabsWrap = document.getElementById('tabs');
+    const btnClose = document.getElementById('btn-close');
+    const btnMin   = document.getElementById('btn-min');
+    const btnMax   = document.getElementById('btn-max');
+    const scrollL  = document.getElementById('scroll-left');
+    const scrollR  = document.getElementById('scroll-right');
+    const onboarding = document.getElementById('onboarding');
+    const btnSettings = document.getElementById('btn-settings');
+    const providersGrid = document.getElementById('providers-grid');
+    const addForm = document.getElementById('add-form');
+    const addName = document.getElementById('add-name');
+    const addUrl  = document.getElementById('add-url');
+    const addIcon = document.getElementById('add-icon');
+    const btnSaveDefault = document.getElementById('btn-save-default');
+    const btnCloseOnb = document.getElementById('btn-close-onb');
 
-    // Navegação das abas
-    const tabs = document.querySelectorAll('.tab');
-    tabs.forEach(b => b.onclick = () => window.api.navGo(b.dataset.url));
+    // ===== centralização da barra =====
+    const syncSpacer = () => { rightEl.style.width = leftEl.offsetWidth + 'px'; };
+    new ResizeObserver(syncSpacer).observe(leftEl);
+    window.addEventListener('resize', syncSpacer); syncSpacer();
 
-    // Marcar aba ativa conforme a URL atual do BrowserView
-    function paintActive(url){
-      tabs.forEach(b => b.classList.toggle('active', url && (url.startsWith(b.dataset.url) || url.includes(new URL(b.dataset.url).hostname))));
+    // ===== controles de janela =====
+    btnClose.addEventListener('click', () => window.api?.close());
+    btnMin  .addEventListener('click', () => window.api?.minimize());
+    btnMax  .addEventListener('click', () => window.api?.toggleMaximize());
+
+    // ===== estado de providers =====
+    let providers = { list: [], defaultId: null };
+    const reloadProviders = async () => {
+      providers = await window.api.getProviders();
+      renderTabs();
+      renderOnboarding();
+      maybeShowOnboarding();
+    };
+
+    // ===== abas dinâmicas =====
+    function renderTabs(activeUrl) {
+      const href = String(activeUrl || '');
+      tabsWrap.innerHTML = '';
+      providers.list.forEach((p) => {
+        const b = document.createElement('button');
+        b.className =
+          'no-drag px-3 py-0.4 border border-white/10 rounded-full text-sm font-medium text-white/90 ' +
+          'bg-white/10 hover:bg-white/20 active:translate-y-px transition flex items-center gap-2';
+        if (href.startsWith(p.url) || href.includes(new URL(p.url).hostname)) b.classList.add('tab-active');
+        const icon = document.createElement('span');
+        icon.innerHTML = ICONS[p.icon] || ICONS.globe;
+        const label = document.createElement('span');
+        label.textContent = p.name;
+        b.append(icon, label);
+        b.title = p.url;
+        b.addEventListener('click', () => window.api?.navGo(p.url));
+        tabsWrap.appendChild(b);
+      });
+      updateArrows();
     }
-    window.api.onActiveUrl((url) => paintActive(url));
+
+    // setas / scroll suave
+    const SCROLL_STEP = 200;
+    const doScroll = (dir) => tabsWrap.scrollBy({ left: dir * SCROLL_STEP, behavior: 'smooth' });
+    scrollL.addEventListener('click', () => doScroll(-1));
+    scrollR.addEventListener('click', () => doScroll(1));
+    function updateArrows() {
+      const canScroll = tabsWrap.scrollWidth > tabsWrap.clientWidth + 8;
+      scrollL.style.display = canScroll ? 'flex' : 'none';
+      scrollR.style.display = canScroll ? 'flex' : 'none';
+    }
+    new ResizeObserver(updateArrows).observe(tabsWrap);
+    window.addEventListener('resize', updateArrows);
+
+    // atualizar ativa quando BrowserView navega
+    window.api?.onActiveUrl((url) => {
+      renderTabs(url);
+      const active = [...tabsWrap.children].find(el => el.classList.contains('tab-active'));
+      active?.scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' });
+    });
+
+    // ===== onboarding/config =====
+    function renderOnboarding() {
+      providersGrid.innerHTML = '';
+      providers.list.forEach((p) => {
+        const card = document.createElement('div');
+        card.className = 'rounded-xl border border-white/10 bg-white/5 p-4 flex flex-col gap-3';
+        card.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="text-white/90">${ICONS[p.icon] || ICONS.globe}</span>
+            <div class="font-medium">${p.name}</div>
+          </div>
+          <div class="text-xs text-white/60 truncate">${p.url}</div>
+          <div class="flex items-center justify-between mt-1">
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="defaultIa" value="${p.id}" ${p.id===providers.defaultId?'checked':''}/>
+              <span class="text-sm">Tornar padrão</span>
+            </label>
+            <button data-remove="${p.id}" class="text-red-300/90 hover:text-red-200 text-sm px-2 py-1 rounded">Remover</button>
+          </div>
+        `;
+        providersGrid.appendChild(card);
+      });
+
+      // listeners: default & remove
+      providersGrid.querySelectorAll('input[name="defaultIa"]').forEach(inp => {
+        inp.addEventListener('change', async (e) => {
+          await window.api.setDefaultProvider(e.target.value);
+          providers.defaultId = e.target.value;
+        });
+      });
+      providersGrid.querySelectorAll('[data-remove]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.getAttribute('data-remove');
+          await window.api.removeProvider(id);
+          reloadProviders();
+        });
+      });
+    }
+
+    async function handleAddProvider(evt) {
+      evt.preventDefault();
+      const name = addName.value.trim();
+      const url  = addUrl.value.trim();
+      const icon = addIcon.value;
+      if (!name || !url) return;
+      await window.api.addProvider({ name, url, icon });
+      addName.value = ''; addUrl.value = '';
+      reloadProviders();
+    }
+    addForm.addEventListener('submit', handleAddProvider);
+
+    function maybeShowOnboarding() {
+      onboarding.classList.toggle('hidden', !!providers.defaultId);
+    }
+
+    btnSaveDefault.addEventListener('click', async () => {
+      // pega selecionado; se nenhum, usa o primeiro
+      const sel = onboarding.querySelector('input[name="defaultIa"]:checked');
+      const chosen = sel?.value || providers.list[0]?.id;
+      if (chosen) {
+        await window.api.setDefaultProvider(chosen);
+        const p = providers.list.find(x => x.id === chosen);
+        if (p) window.api.navGo(p.url);
+      }
+      onboarding.classList.add('hidden');
+    });
+    btnCloseOnb.addEventListener('click', () => onboarding.classList.add('hidden'));
+    btnSettings.addEventListener('click', () => { window.api?.openSettings('settings/index.html'); });
+    
+    // re-render quando main alterar a store
+    window.api.onProvidersUpdated((data) => { providers = data; renderTabs(); renderOnboarding(); });
+
+    // boot
+    reloadProviders();
   </script>
 </body>
 </html>
