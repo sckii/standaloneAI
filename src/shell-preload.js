@@ -26,6 +26,12 @@ contextBridge.exposeInMainWorld('api', {
   navGo: (url) => ipcRenderer.invoke('nav:go', url),
   onActiveUrl: (cb) => ipcRenderer.on('nav:active', (_e, url) => cb?.(url)),
 
+  // settings: na MESMA janela
+  settingsShow:   (show) => ipcRenderer.invoke('settings:show', show),
+  settingsToggle: () => ipcRenderer.invoke('settings:toggle'),
+  settingsGetState: () => ipcRenderer.invoke('settings:getState'),
+  onSettingsState: (cb) => ipcRenderer.on('settings:state', (_e, s) => cb?.(s.open)),
+
   // abrir configurações em janela separada
   openSettings: (path) => ipcRenderer.invoke('settings:open', path),
 
@@ -38,6 +44,8 @@ contextBridge.exposeInMainWorld('api', {
   removeProvider: (id) => ipcRenderer.invoke('providers:remove', id),
   setDefaultProvider: (id) => ipcRenderer.invoke('providers:setDefault', id),
   setPinned: (id, pinned) => ipcRenderer.invoke('providers:setPinned', { id, pinned }),
+
+
 
   // eventos
   onProvidersUpdated: (cb) =>

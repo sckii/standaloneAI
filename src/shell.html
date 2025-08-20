@@ -1,109 +1,259 @@
 <!doctype html>
-<html>
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
   <title>Shell</title>
-  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    .drag{-webkit-app-region:drag} .no-drag{-webkit-app-region:no-drag}
-    .glass{background:rgb(20, 20, 20);backdrop-filter:blur(12px)}
-    .tab-active{background:#fff;color:#111;box-shadow:0 6px 16px rgba(0,0,0,.25);border-color:#fff}
-    #tabs{scroll-behavior:smooth}
+    :root{
+      --hbar: 48px;
+      --glass: rgba(20,20,20,.92);
+      --text: #f5f6f8;
+      --muted:#a8b0bf;
+      --line:#262936;
+      --line2:#2e3446;
+      --accent:#ffffff;
+      --accentText:#111;
+      --btn:#1b1e2a;
+      --btnHover:#202436;
+      --hover: rgba(255,255,255,.08);
+      --shadow: 0 8px 24px rgba(0,0,0,.35);
+      --radius: 12px;
+    }
+
+    /* ===== Base ===== */
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; background: transparent; color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; user-select: none; }
+
+    /* ===== Draggable ===== */
+    .drag{ -webkit-app-region: drag; }
+    .no-drag{ -webkit-app-region: no-drag; }
+
+    /* ===== Titlebar ===== */
+    #titlebar{
+      position: fixed; height: var(--hbar);
+      display: flex; align-items: center; justify-content: space-between;
+      width: 100%;
+      padding: 0 12px; z-index: 999999;
+      background: var(--glass); backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+
+    /* Traffic lights */
+    #left{ display:flex; gap:8px; align-items:center; }
+    .tl{
+      width: 12px; height: 12px; border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.2); cursor: default;
+    }
+
+    /* Tabs area */
+    .tabs-center{ display:flex; align-items:center; justify-content:center; }
+    .tabs-frame{ position:relative; width:100%; max-width: 400px; }
+    #tabs{
+      margin: 0 40px; display:flex; gap:8px; align-items:center;
+      overflow-x: auto; white-space: nowrap; padding: 6px 0;
+      scroll-behavior: smooth;
+    }
+    #tabs::-webkit-scrollbar{ height: 4px; }
+    #tabs::-webkit-scrollbar-thumb{ background: #1a1e2a; border-radius: 999px; }
+    .arrow{
+      position:absolute; top:50%; transform: translateY(-50%);
+      display:none; align-items:center; justify-content:center;
+      width:28px; height:28px; border-radius:999px; border:1px solid var(--line);
+      background: rgba(0,0,0,.35); color:#fff; cursor:pointer;
+    }
+    .arrow:hover{ background: rgba(0,0,0,.55); }
+    #scroll-left{ left:0; }
+    #scroll-right{ right:0; }
+
+    /* Tab button */
+    .tab {
+      border:1px solid var(--line); border-radius: 999px;
+      padding: 4px 12px; font-size: 13px; line-height: 1; font-weight: 600;
+      color: rgba(255,255,255,.92); background: rgba(255,255,255,.06);
+      display:inline-flex; gap:8px; align-items:center; cursor:pointer;
+      transition: background .15s, transform .05s, color .15s, border-color .15s;
+    }
+    .tab:hover{ background: rgba(255,255,255,.12); }
+    .tab:active{ transform: translateY(1px); }
+    .tab-active{
+      background: var(--accent); color: var(--accentText);
+      border-color: var(--accent); box-shadow: 0 6px 16px rgba(0,0,0,.25);
+    }
+
+    /* Right section */
+    #right{ display:flex; align-items:center; justify-content:center; margin-right: 40px;}
+    #btn-settings{
+      display: flex; align-items: center; gap:8px;
+      padding: 8px; border-radius: 10px; border: 1px solid transparent;
+      color:#fff; background: transparent; cursor: pointer;
+    }
+    #btn-settings:hover{ background: var(--hover); }
+    .gear-active{ background: rgba(255,255,255,.15); }
+
+    /* ===== Overlay (onboarding/config) ===== */
+    #onboarding.hidden{ display:none !important; }
+    #onboarding{ position: fixed; inset:0; z-index:999998; }
+    #onboarding .backdrop{ position:absolute; inset:0; background: rgba(0,0,0,.5); }
+    .modal{
+      position: relative; margin: 80px auto 0 auto;
+      width: min(900px, 92vw);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius: 16px; background: rgba(18,18,20,.96);
+      color:#fff; box-shadow: var(--shadow);
+      padding: 24px;
+    }
+    .modal h2{ margin:0 0 8px 0; font-size: 20px; font-weight: 700; }
+    .muted{ color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+
+    /* Grid de providers */
+    #providers-grid{
+      display:grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 18px;
+    }
+    @media (max-width: 920px){ #providers-grid{ grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 640px){ #providers-grid{ grid-template-columns: 1fr; } }
+
+    .card{
+      border:1px solid var(--line); border-radius: var(--radius);
+      background:#11131a; padding: 14px; display:flex; flex-direction:column; gap:10px;
+    }
+    .card .row{
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
+    .card .title{ display:flex; align-items:center; gap:8px; font-weight: 600; }
+    .card .url{ color:#cbd5e1; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+    .radio, .check { display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-size: 14px; }
+    .radio input, .check input { accent-color: #4ea2ff; width:16px; height:16px; }
+
+    .btn{ border:1px solid var(--line); background: var(--btn); color:#e5e7eb; padding: 8px 12px; border-radius: 10px; cursor:pointer; }
+    .btn:hover{ background: var(--btnHover); }
+    .btn-danger{ border-color: #4b2830; color:#ffc9c9; background:#2a0f14; }
+    .btn-danger:hover{ background:#34161b; }
+
+    .btn-primary{ background: #fff; color:#111; border:1px solid #fff; }
+    .btn-primary:hover{ filter: brightness(0.95); }
+
+    /* Form de adicionar */
+    .add-wrap{ border-top:1px solid rgba(255,255,255,.12); padding-top:16px; }
+    .add-grid{ display:grid; grid-template-columns: 1fr 1fr auto; gap:8px; }
+    .input, .select{
+      width:100%; background:#0f1118; color:#e5e7eb; border:1px solid var(--line2);
+      border-radius: 10px; padding: 10px 12px; outline: none;
+    }
+    .input:focus, .select:focus{ border-color:#5aa7ff; box-shadow: 0 0 0 2px rgba(90,167,255,.25); }
+
+    .actions-row{ display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap: wrap; }
+
+    /* Util */
+    .visually-hidden{ position:absolute !important; left:-9999px !important; }
+
   </style>
 </head>
-<body class="bg-transparent select-none">
+<body>
 
   <!-- Barra (titlebar + tabs centralizadas) -->
-  <header id="titlebar" class="drag fixed inset-x-0 top-0 z-[999999] h-12 grid grid-cols-[auto_1fr_auto] items-center px-3 glass">
+  <header id="titlebar" class="drag">
     <!-- Esquerda: traffic lights -->
-    <div id="left" class="no-drag flex items-center gap-2">
-      <button id="btn-close" class="w-3 h-3 rounded-full border border-black/20" style="background:#ff5f57"></button>
-      <button id="btn-min"   class="w-3 h-3 rounded-full border border-black/20" style="background:#ffbd2e"></button>
-      <button id="btn-max"   class="w-3 h-3 rounded-full border border-black/20" style="background:#28c840"></button>
+    <div id="left" class="no-drag">
+      <button id="btn-close" class="tl" style="background:#ff5f57" title="Fechar"></button>
+      <button id="btn-min"   class="tl" style="background:#ffbd2e" title="Minimizar"></button>
+      <button id="btn-max"   class="tl" style="background:#28c840" title="Maximizar/Restaurar"></button>
     </div>
 
     <!-- Centro: abas -->
-    <div class="drag flex items-center justify-center">
-      <div class="relative w-full max-w-[880px]">
-        <button id="scroll-left" class="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/30 hover:bg-black/50">
+    <div class="tabs-center">
+      <div class="tabs-frame no-drag">
+        <button id="scroll-left"  class="arrow" aria-label="Rolar para a esquerda">
           <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <button id="scroll-right" class="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/30 hover:bg-black/50">
+        <button id="scroll-right" class="arrow" aria-label="Rolar para a direita">
           <svg width="16" height="16" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <div id="tabs" class="mx-6 flex items-center gap-2 overflow-x-auto whitespace-nowrap py-1"></div>
+        <div id="tabs"></div>
       </div>
     </div>
 
-    <!-- Direita: engrenagem (abre tela inicial/config) -->
-    <div id="right" class="no-drag flex items-center">
-      <button id="btn-settings" class="p-2 rounded hover:bg-white/10" title="Configurar IAs">
-        <!-- ícone engrenagem -->
-        <svg width="18" height="18" viewBox="0 0 24 24" class="text-white/90"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" fill="currentColor"/><path d="M19.4 15a7.97 7.97 0 0 0 .06-1 7.97 7.97 0 0 0-.06-1l2.02-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.38.96a7.9 7.9 0 0 0-1.73-1l-.36-2.54A.5.5 0 0 0 12.07 3h-3.84a.5.5 0 0 0-.49.41L7.38 5.95a7.9 7.9 0 0 0-1.73 1L3.27 6a.5.5 0 0 0-.6.22L.75 9.54a.5.5 0 0 0 .12.64L2.9 11.76a7.97 7.97 0 0 0-.06 1c0 .34.02.67.06 1l-2.03 1.59a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.38-.96c.53.4 1.11.74 1.73 1l.36 2.54a.5.5 0 0 0 .49.41h3.84a.5.5 0 0 0 .49-.41l.36-2.54a7.9 7.9 0 0 0 1.73-1l2.38.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64L19.4 15Z" fill="currentColor"/></svg>
+    <!-- Direita: engrenagem (abre/fecha settings na MESMA janela) -->
+    <div id="right" class="no-drag ">
+      <button id="btn-settings" title="Configurar IAs">
+        <span>Configurações</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" fill="currentColor"/>
+          <path d="M19.4 15a7.97 7.97 0 0 0 .06-1 7.97 7.97 0 0 0-.06-1l2.02-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.38.96a7.9 7.9 0 0 0-1.73-1l-.36-2.54A.5.5 0 0 0 12.07 3h-3.84a.5.5 0 0 0-.49.41L7.38 5.95a7.9 7.9 0 0 0-1.73 1L3.27 6a.5.5 0 0 0-.6.22L.75 9.54a.5.5 0 0 0 .12.64L2.9 11.76a7.97 7.97 0 0 0-.06 1c0 .34.02.67.06 1l-2.03 1.59a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.38-.96c.53.4 1.11.74 1.73 1l.36 2.54a.5.5 0 0 0 .49.41h3.84a.5.5 0 0 0 .49-.41l.36-2.54a7.9 7.9 0 0 0 1.73-1l2.38.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64L19.4 15Z" fill="currentColor"/>
+        </svg>
       </button>
     </div>
   </header>
 
-  <!-- Tela inicial / Config de IAs -->
-  <div id="onboarding" class="no-drag fixed inset-0 z-[999998] hidden">
-    <div class="absolute inset-0 bg-black/50"></div>
-    <div class="relative mx-auto mt-20 w-[min(900px,92vw)] rounded-2xl bg-neutral-900/95 border border-white/10 shadow-2xl p-6 text-white">
-      <h2 class="text-xl font-semibold mb-2">Escolha sua IA padrão</h2>
-      <p class="text-white/70 mb-4">Selecione a IA padrão e adicione outras que você usa. Você pode mudar depois na engrenagem.</p>
+  <!-- Tela inicial / Config de IAs (overlay) -->
+  <div id="onboarding" class="no-drag hidden" role="dialog" aria-modal="true" aria-label="Configurações rápidas">
+    <div class="backdrop"></div>
+    <div class="modal">
+      <h2>Escolha sua IA padrão</h2>
+      <p class="muted">Selecione a IA padrão e adicione outras que você usa. Você pode mudar depois na engrenagem.</p>
 
-      <div id="providers-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6"></div>
+      <div id="providers-grid"></div>
 
-      <div class="border-t border-white/10 pt-4">
-        <h3 class="font-medium mb-2">Adicionar nova IA</h3>
-        <form id="add-form" class="grid sm:grid-cols-4 gap-2">
-          <input id="add-name" class="col-span-1 sm:col-span-1 bg-white/10 rounded px-3 py-2 outline-none focus:bg-white/15" placeholder="Nome (ex.: Perplexity)" />
-          <input id="add-url"  class="col-span-2 sm:col-span-2 bg-white/10 rounded px-3 py-2 outline-none focus:bg-white/15" placeholder="URL (ex.: https://www.perplexity.ai/)" />
-          <select id="add-icon" class="col-span-1 bg-white/10 rounded px-3 py-2 outline-none">
-            <option value="globe">🌐 Ícone padrão</option>
-            <option value="gpt">GPT</option>
-            <option value="book">Docs</option>
-            <option value="code">Code</option>
-          </select>
-          <button class="col-span-full sm:col-span-1 justify-self-start mt-1 bg-white/90 text-black font-medium px-4 py-2 rounded hover:bg-white">Adicionar</button>
+      <div class="add-wrap">
+        <h3 style="margin:0 0 8px 0; font-size:16px; font-weight:600;">Adicionar nova IA</h3>
+        <form id="add-form" autocomplete="off">
+          <div class="add-grid">
+            <input id="add-name" class="input" placeholder="Nome (ex.: Perplexity)" />
+            <input id="add-url"  class="input" placeholder="URL (ex.: https://www.perplexity.ai/)" />
+            <select id="add-icon" class="select">
+              <option value="globe">🌐 Ícone padrão</option>
+              <option value="gpt">GPT</option>
+              <option value="book">Docs</option>
+              <option value="code">Code</option>
+            </select>
+          </div>
+          <div class="actions-row">
+            <label class="check"><input id="add-pin" type="checkbox" /> Fixar nas abas</label>
+            <label class="check"><input id="add-default" type="checkbox" /> Definir como padrão</label>
+            <button class="btn btn-primary" style="margin-left:auto;">Adicionar</button>
+          </div>
         </form>
       </div>
 
-      <div class="mt-6 flex items-center gap-2">
-        <button id="btn-save-default" class="bg-white text-black font-semibold px-4 py-2 rounded hover:bg-white/90">Usar como padrão e abrir</button>
-        <button id="btn-close-onb" class="px-3 py-2 rounded border border-white/20 hover:bg-white/10">Cancelar</button>
+      <div style="margin-top:16px; display:flex; gap:8px; align-items:center;">
+        <button id="btn-save-default" class="btn btn-primary">Usar como padrão e abrir</button>
+        <button id="btn-close-onb" class="btn">Cancelar</button>
       </div>
     </div>
   </div>
 
   <script>
-    // ===== Helpers de SVG simples =====
+    // ===== SVG ícones mínimos =====
     const ICONS = {
-      gpt:  '<svg width="16" height="16" viewBox="0 0 24 24" class="shrink-0"><path d="M12 2l3.5 2 3.5 6-3.5 6L12 22l-3.5-2-3.5-6 3.5-6L12 2z" fill="currentColor" opacity=".15"/><path d="M8 12a4 4 0 1 0 8 0" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>',
+      gpt:  '<svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 2l3.5 2 3.5 6-3.5 6L12 22l-3.5-2-3.5-6 3.5-6L12 2z" fill="currentColor" opacity=".15"/><path d="M8 12a4 4 0 1 0 8 0" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>',
       book:'<svg width="16" height="16" viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4z" fill="currentColor" opacity=".2"/><path d="M5 4h10a3 3 0 0 1 3 3v13" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>',
       code:'<svg width="16" height="16" viewBox="0 0 24 24"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13 7l-2 10" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
       globe:'<svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M3 12h18M12 3c3 4 3 14 0 18M12 3c-3 4-3 14 0 18" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>',
     };
 
     // ===== Elementos principais =====
-    const leftEl   = document.getElementById('left');
-    const rightEl  = document.getElementById('right');
-    const tabsWrap = document.getElementById('tabs');
-    const btnClose = document.getElementById('btn-close');
-    const btnMin   = document.getElementById('btn-min');
-    const btnMax   = document.getElementById('btn-max');
-    const scrollL  = document.getElementById('scroll-left');
-    const scrollR  = document.getElementById('scroll-right');
-    const onboarding = document.getElementById('onboarding');
-    const btnSettings = document.getElementById('btn-settings');
-    const providersGrid = document.getElementById('providers-grid');
-    const addForm = document.getElementById('add-form');
-    const addName = document.getElementById('add-name');
-    const addUrl  = document.getElementById('add-url');
-    const addIcon = document.getElementById('add-icon');
+    const leftEl         = document.getElementById('left');
+    const rightEl        = document.getElementById('right');
+    const tabsWrap       = document.getElementById('tabs');
+    const btnClose       = document.getElementById('btn-close');
+    const btnMin         = document.getElementById('btn-min');
+    const btnMax         = document.getElementById('btn-max');
+    const scrollL        = document.getElementById('scroll-left');
+    const scrollR        = document.getElementById('scroll-right');
+    const onboarding     = document.getElementById('onboarding');
+    const btnSettings    = document.getElementById('btn-settings');
+    const providersGrid  = document.getElementById('providers-grid');
+    const addForm        = document.getElementById('add-form');
+    const addName        = document.getElementById('add-name');
+    const addUrl         = document.getElementById('add-url');
+    const addIcon        = document.getElementById('add-icon');
+    const addPin         = document.getElementById('add-pin');
+    const addDefault     = document.getElementById('add-default');
     const btnSaveDefault = document.getElementById('btn-save-default');
-    const btnCloseOnb = document.getElementById('btn-close-onb');
+    const btnCloseOnb    = document.getElementById('btn-close-onb');
 
-    // ===== centralização da barra =====
+    // ===== centralização da barra (direita = largura da esquerda) =====
     const syncSpacer = () => { rightEl.style.width = leftEl.offsetWidth + 'px'; };
     new ResizeObserver(syncSpacer).observe(leftEl);
     window.addEventListener('resize', syncSpacer); syncSpacer();
@@ -128,14 +278,15 @@
       tabsWrap.innerHTML = '';
       providers.list.forEach((p) => {
         const b = document.createElement('button');
-        b.className =
-          'no-drag px-3 py-0.4 border border-white/10 rounded-full text-sm font-medium text-white/90 ' +
-          'bg-white/10 hover:bg-white/20 active:translate-y-px transition flex items-center gap-2';
-        if (href.startsWith(p.url) || href.includes(new URL(p.url).hostname)) b.classList.add('tab-active');
+        b.className = 'tab';
+        const isActive = href.startsWith(p.url) || (p.url && href.includes(new URL(p.url).hostname));
+        if (isActive) b.classList.add('tab-active');
+
         const icon = document.createElement('span');
         icon.innerHTML = ICONS[p.icon] || ICONS.globe;
         const label = document.createElement('span');
         label.textContent = p.name;
+
         b.append(icon, label);
         b.title = p.url;
         b.addEventListener('click', () => window.api?.navGo(p.url));
@@ -165,42 +316,41 @@
     });
 
     // ===== onboarding/config =====
-    function renderOnboarding() {
-      providersGrid.innerHTML = '';
-      providers.list.forEach((p) => {
-        const card = document.createElement('div');
-        card.className = 'rounded-xl border border-white/10 bg-white/5 p-4 flex flex-col gap-3';
-        card.innerHTML = `
-          <div class="flex items-center gap-2">
-            <span class="text-white/90">${ICONS[p.icon] || ICONS.globe}</span>
-            <div class="font-medium">${p.name}</div>
-          </div>
-          <div class="text-xs text-white/60 truncate">${p.url}</div>
-          <div class="flex items-center justify-between mt-1">
-            <label class="inline-flex items-center gap-2 cursor-pointer">
-              <input type="radio" name="defaultIa" value="${p.id}" ${p.id===providers.defaultId?'checked':''}/>
-              <span class="text-sm">Tornar padrão</span>
-            </label>
-            <button data-remove="${p.id}" class="text-red-300/90 hover:text-red-200 text-sm px-2 py-1 rounded">Remover</button>
-          </div>
-        `;
-        providersGrid.appendChild(card);
+    function cardTemplate(p){
+      const card = document.createElement('div');
+      card.className = 'card';
+      // topo
+      const top = document.createElement('div');
+      top.className = 'title';
+      const icon = document.createElement('span'); icon.innerHTML = ICONS[p.icon] || ICONS.globe;
+      const name = document.createElement('div'); name.textContent = p.name;
+      top.append(icon, name);
+      // url
+      const url = document.createElement('div'); url.className='url'; url.textContent = p.url;
+      // linha ações
+      const row = document.createElement('div'); row.className='row';
+
+      const defWrap = document.createElement('label'); defWrap.className='radio';
+      const rd = document.createElement('input'); rd.type='radio'; rd.name='defaultIa'; rd.value=p.id; rd.checked=(p.id===providers.defaultId);
+      rd.addEventListener('change', async (e)=>{ if (e.target.checked){ await window.api.setDefaultProvider(p.id); providers.defaultId = p.id; }});
+      defWrap.append(rd, document.createTextNode('Padrão'));
+
+      const btnRemove = document.createElement('button'); btnRemove.className='btn btn-danger'; btnRemove.textContent='Remover';
+      btnRemove.addEventListener('click', async ()=>{
+        if (!confirm('Remover esta IA?')) return;
+        await window.api.removeProvider(p.id);
+        await reloadProviders();
       });
 
-      // listeners: default & remove
-      providersGrid.querySelectorAll('input[name="defaultIa"]').forEach(inp => {
-        inp.addEventListener('change', async (e) => {
-          await window.api.setDefaultProvider(e.target.value);
-          providers.defaultId = e.target.value;
-        });
-      });
-      providersGrid.querySelectorAll('[data-remove]').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const id = btn.getAttribute('data-remove');
-          await window.api.removeProvider(id);
-          reloadProviders();
-        });
-      });
+      row.append(defWrap, btnRemove);
+
+      card.append(top, url, row);
+      return card;
+    }
+
+    function renderOnboarding() {
+      providersGrid.innerHTML = '';
+      providers.list.forEach(p => providersGrid.appendChild(cardTemplate(p)));
     }
 
     async function handleAddProvider(evt) {
@@ -208,10 +358,15 @@
       const name = addName.value.trim();
       const url  = addUrl.value.trim();
       const icon = addIcon.value;
+      const pinned = !!addPin.checked;
+      const setAsDefault = !!addDefault.checked;
       if (!name || !url) return;
-      await window.api.addProvider({ name, url, icon });
-      addName.value = ''; addUrl.value = '';
-      reloadProviders();
+      try{
+        new URL(url);
+        await window.api.addProvider({ name, url, icon, pinned, setAsDefault });
+        addForm.reset();
+        await reloadProviders();
+      }catch{ alert('Verifique a URL.'); }
     }
     addForm.addEventListener('submit', handleAddProvider);
 
@@ -220,7 +375,6 @@
     }
 
     btnSaveDefault.addEventListener('click', async () => {
-      // pega selecionado; se nenhum, usa o primeiro
       const sel = onboarding.querySelector('input[name="defaultIa"]:checked');
       const chosen = sel?.value || providers.list[0]?.id;
       if (chosen) {
@@ -231,8 +385,25 @@
       onboarding.classList.add('hidden');
     });
     btnCloseOnb.addEventListener('click', () => onboarding.classList.add('hidden'));
-    btnSettings.addEventListener('click', () => { window.api?.openSettings('settings/index.html'); });
-    
+
+    // pinta o botão quando settings estiver aberto
+    function setGearActive(open) {
+      btnSettings.classList.toggle('gear-active', open);
+      btnSettings.setAttribute('aria-pressed', open ? 'true' : 'false');
+    }
+
+    // clique = toggle (abre/fecha settings na MESMA janela)
+    btnSettings.addEventListener('click', async () => {
+      const res = await window.api?.settingsToggle();
+      setGearActive(!!res?.open);
+    });
+
+    // sincroniza se o estado mudar por outro lugar (ex.: botão “Voltar” dentro do settings)
+    window.api?.onSettingsState((open) => setGearActive(open));
+
+    // estado inicial ao carregar
+    window.api?.settingsGetState().then(s => setGearActive(!!s?.open));
+
     // re-render quando main alterar a store
     window.api.onProvidersUpdated((data) => { providers = data; renderTabs(); renderOnboarding(); });
 

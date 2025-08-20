@@ -2,6 +2,31 @@
 const { app, BrowserWindow, BrowserView, globalShortcut, ipcMain, shell } = require('electron');
 const path = require('path');
 const Store = require('electron-store');
+const fs = require('fs');
+
+if (!app.requestSingleInstanceLock()) { app.quit(); }
+
+// Sempre use %AppData%\SeuApp (gravável)
+const userData = path.join(app.getPath('appData'), app.getName());
+app.setPath('userData', userData);
+
+// Directory do cache explícito dentro do userData
+const cacheDir = path.join(userData, 'Cache');
+fs.mkdirSync(cacheDir, { recursive: true });
+app.commandLine.appendSwitch('disk-cache-dir', cacheDir);
+
+// Evita cache de shaders em disco (ruído comum)
+app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
+app.commandLine.appendSwitch('disable-gpu-program-cache');
+
+// ======= Limpeza emergencial (opcional, só rodar UMA vez) =======
+// Rode o app com RECOVER_CACHE=1 na primeira execução após este patch
+if (process.env.RECOVER_CACHE === '1') {
+  // apaga pastas problemáticas ANTES de criar janela/sessão
+  for (const rel of ['Service Worker', 'GPUCache', 'Code Cache', 'Cache']) {
+    try { fs.rmSync(path.join(userData, rel), { recursive: true, force: true }); } catch {}
+  }
+}
 
 // ------------ Store & helpers ------------
 const store = new Store({
@@ -34,12 +59,77 @@ function validateUrl(u){ try{ const x=new URL(u); return x.protocol==='https:'||
 function findProvider(id){ return getProviders().find(p=>p.id===id); }
 
 // ------------ Globals ------------
-let win;          // janela do shell (titlebar + tabs)
-let view;         // BrowserView com o site remoto
-let settingsWin;  // janela das Configurações
-let CHROME_HEIGHT = 48; // altura da barra (atualizada pelo shell via IPC)
+let win;
+let contentView;     // BrowserView com sites/IA
+let settingsView;    // BrowserView com settings/index.html
+let ACTIVE = 'content';
+let CHROME_HEIGHT = 48;
 
 // ------------ Criação das janelas ------------
+function ensureViews() {
+  if (!contentView) {
+    contentView = new BrowserView({
+      webPreferences: { contextIsolation: true }
+    });
+    // carregue a URL do provedor padrão
+    const providers = getProviders();
+    let def = findProvider(getDefaultId());
+    if (!def) { def = providers[0]; setDefaultId(def.id); }
+    contentView.webContents.loadURL(def.url);
+
+    // abrir target=_blank fora
+    contentView.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
+
+    // avisar shell sobre URL ativa (para pintar a aba)
+    const notify = (_e, url) => win?.webContents.send('nav:active', url);
+    contentView.webContents.on('did-navigate', notify);
+    contentView.webContents.on('did-navigate-in-page', notify);
+  }
+
+  if (!settingsView) {
+    settingsView = new BrowserView({
+      webPreferences: {
+        contextIsolation: true,
+        preload: path.join(__dirname, 'settings/settings-preload.js') // o mesmo preload da janela separada
+      }
+    });
+    settingsView.webContents.loadFile(path.join(__dirname, 'settings', 'index.html'));
+  }
+}
+
+function setBoundsAll() {
+  if (!win) return;
+  const [w, h] = win.getContentSize();
+  const rect = { x: 0, y: Math.round(CHROME_HEIGHT), width: w, height: Math.max(0, h - Math.round(CHROME_HEIGHT)) };
+  if (contentView)  contentView.setBounds(rect);
+  if (settingsView) settingsView.setBounds(rect);
+}
+
+function attach(view) {
+  // remove todos e adiciona apenas o desejado
+  win.getBrowserViews().forEach(v => win.removeBrowserView(v));
+  win.addBrowserView(view);
+  setBoundsAll();
+}
+
+function broadcastSettingsState() {
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('settings:state', { open: ACTIVE === 'settings' });
+  }
+}
+
+function showSettings(inSameWindow) {
+  ensureViews();
+  if (inSameWindow) {
+    attach(settingsView);
+    ACTIVE = 'settings';
+  } else {
+    attach(contentView);
+    ACTIVE = 'content';
+  }
+  broadcastSettingsState();
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1100,
@@ -47,85 +137,18 @@ function createWindow() {
     frame: false,
     autoHideMenuBar: true,
     backgroundColor: '#00000000',
-    webPreferences: {
-      contextIsolation: true,
-      preload: path.join(__dirname, 'shell-preload.js')
-    }
+    webPreferences: { contextIsolation: true, preload: path.join(__dirname, 'shell-preload.js'), partition: 'persist:main'}
   });
 
-  // Shell com titlebar/tabs (HTML local)
   win.loadFile(path.join(__dirname, 'shell.html'));
+  ensureViews();
+  attach(contentView); // inicia no conteúdo
 
-  // BrowserView com conteúdo remoto
-  view = new BrowserView({
-    webPreferences: { contextIsolation: true }
-  });
-  win.setBrowserView(view);
+  win.on('resize', setBoundsAll);
 
-  // Carrega provedor padrão
-  const providers = getProviders();
-  let def = findProvider(getDefaultId());
-  if (!def) { def = providers[0]; setDefaultId(def.id); }
-  view.webContents.loadURL(def.url);
-
-  // Dimensiona o BrowserView abaixo da barra
-  const setBounds = () => {
-    const [w, h] = win.getContentSize();
-    view.setBounds({
-      x: 0,
-      y: Math.round(CHROME_HEIGHT),
-      width: w,
-      height: Math.max(0, h - Math.round(CHROME_HEIGHT))
-    });
-  };
-  setBounds();
-  win.on('resize', setBounds);
-
-  // Eventos de navegação (para pintar aba ativa no shell)
-  const notifyActive = (_e, url) => win.webContents.send('nav:active', url);
-  view.webContents.on('did-navigate', notifyActive);
-  view.webContents.on('did-navigate-in-page', notifyActive);
-
-  // Links target=_blank abrem no navegador padrão
-  view.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: 'deny' };
-  });
-
-  // Envia lista inicial de provedores para o shell
+  // envia lista inicial ao shell quando estiver pronto
   win.webContents.on('did-finish-load', () => {
     win.webContents.send('providers:init', { providers: getProviders(), defaultId: getDefaultId() });
-  });
-}
-
-function openSettingsWindow(filePath) {
-  if (settingsWin && !settingsWin.isDestroyed()) {
-    settingsWin.focus();
-    return;
-  }
-
-  settingsWin = new BrowserWindow({
-    width: 900,
-    height: 620,
-    show: true,
-    resizable: true,
-    autoHideMenuBar: true,
-    frame: true, // mude para frameless se quiser mesma titlebar do shell
-    webPreferences: {
-      contextIsolation: true,
-      preload: path.join(__dirname, 'settings/settings-preload.js')
-    },
-  });
-
-  const defaultFile = path.join(__dirname, 'src/settings', 'index.html');
-  const target = filePath ? path.resolve(__dirname, filePath) : defaultFile;
-
-  settingsWin.loadFile(target);
-  settingsWin.on('closed', () => (settingsWin = null));
-
-  // Opcional: enviar estado inicial ao abrir
-  settingsWin.webContents.on('did-finish-load', () => {
-    settingsWin?.webContents.send('providers:changed', { providers: getProviders(), defaultId: getDefaultId() });
   });
 }
 
@@ -133,9 +156,10 @@ function openSettingsWindow(filePath) {
 function notifyProvidersChanged() {
   const payload = { providers: getProviders(), defaultId: getDefaultId() };
   if (win && !win.isDestroyed()) win.webContents.send('providers:changed', payload);
-  if (settingsWin && !settingsWin.isDestroyed()) settingsWin.webContents.send('providers:changed', payload);
+  if (settingsView && !settingsView.webContents.isDestroyed()) {
+    settingsView.webContents.send('providers:changed', payload);
+  }
 }
-
 // ------------ Atalho global (toggle janela) ------------
 function toggleWindow() {
   if (!win) return;
@@ -144,9 +168,20 @@ function toggleWindow() {
   else { win.show(); win.focus(); }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  if (process.env.RECOVER_CACHE === '1') {
+    try {
+      await session.fromPartition('persist:main').clearStorageData({
+        storages: ['serviceworkers', 'cachestorage'],
+        quotas: ['temporary', 'persistent']
+      });
+    } catch (e) {
+      console.warn('Falha limpando storage SW/CacheStorage:', e);
+    }
+  }
+
   createWindow();
-  globalShortcut.register('Control+Space', toggleWindow);
+  globalShortcut.register('Control+Shift+Space', toggleWindow);
 });
 
 // ------------ IPC: janela e layout ------------
@@ -165,9 +200,9 @@ ipcMain.handle('chrome:setHeight', (_e, h) => {
 
 // ------------ IPC: navegação ------------
 ipcMain.handle('nav:go', (_evt, url) => {
-  if (view && typeof url === 'string' && validateUrl(url)) {
-    view.webContents.loadURL(url);
-  }
+  ensureViews();
+  if (contentView && typeof url === 'string') contentView.webContents.loadURL(url);
+  if (ACTIVE !== 'content') showSettings(false); // volta pro conteúdo
 });
 
 // ------------ IPC: abrir janela de Configurações ------------
@@ -175,6 +210,18 @@ ipcMain.handle('settings:open', (_evt, optionalPath) => {
   openSettingsWindow(optionalPath);
   return { ok: true };
 });
+
+ipcMain.handle('settings:show', (_evt, show) => {
+  showSettings(!!show);
+  return { ok: true, open: ACTIVE === 'settings' };
+});
+
+ipcMain.handle('settings:toggle', () => {
+  showSettings(!(ACTIVE === 'settings'));
+  return { ok: true, open: ACTIVE === 'settings' };
+});
+
+ipcMain.handle('settings:getState', () => ({ open: ACTIVE === 'settings' }));
 
 // ------------ IPC: Providers CRUD ------------
 ipcMain.handle('providers:list', () => ({ providers: getProviders(), defaultId: getDefaultId() }));
@@ -186,11 +233,11 @@ ipcMain.handle('providers:get', () => ({
 
 ipcMain.handle('providers:setDefault', (_e, id) => {
   const p = findProvider(id);
-  if (!p) return { ok: false, error: 'not_found' };
+  if (!p) return { ok:false };
   setDefaultId(id);
-  // opcional: navega para o default ao trocar
-  view?.webContents.loadURL(p.url);
-  return { ok: true };
+  if (contentView) contentView.webContents.loadURL(p.url);
+  showSettings(false);
+  return { ok:true };
 });
 
 ipcMain.handle('providers:open', (_e, id) => {

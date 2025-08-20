@@ -10,4 +10,7 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   setPinned:   (id, pinned) => ipcRenderer.invoke('providers:setPinned', { id, pinned }),
   setDefault:  (id) => ipcRenderer.invoke('providers:setDefault', id),
   open:        (id) => ipcRenderer.invoke('providers:open', id),
+
+  // NOVO: fechar settings (voltar ao conteúdo)
+  closeSettings: () => ipcRenderer.invoke('settings:show', false),
 });
